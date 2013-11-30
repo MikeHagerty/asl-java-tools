@@ -1372,6 +1372,7 @@ public class MiniSeed  implements MiniSeedOutputHandler {
     }
   }
   public int [] decomp() throws SteimException {
+//System.out.println("decomp(): ENTER");
     int rev=0;
     byte [] frames = new byte[getBlockSize()-dataOffset];
     System.arraycopy(buf,dataOffset, frames,0,getBlockSize()-dataOffset); 
@@ -1382,10 +1383,12 @@ public class MiniSeed  implements MiniSeedOutputHandler {
     // Would adding this block "as is" cause a reverse constant error (or steim error)?  If so, restore block
     // to state before adding this one, write it out, and make this block the beginning of next output block
     if(Steim2.hadReverseError() || Steim2.hadSampleCountError()) {
+System.out.println("decomp(): Inside Steim2");
       if(Steim2.hadReverseError()) Util.prta("Decomp  "+Steim2.getReverseError()+" "+toString());
       if(Steim2.hadSampleCountError()) Util.prta("decomp "+Steim2.getSampleCountError()+" "+toString());
       return null;
     }
+//System.out.format("decomp(): return samples n=[%d]\n", samples.length);
     return samples;
   }
   public void fixReverseIntegration() {
@@ -1399,11 +1402,13 @@ public class MiniSeed  implements MiniSeedOutputHandler {
 
       // Would adding this block "as is" cause a reverse constant error (or steim error)?  If so, set reverse
       // integration constant from the decompressed dta.
-      if(Steim2.hadReverseError()) {
+      //if(Steim2.hadReverseError()) {
 
+System.out.println("fixReverseIntegration(): Force the issue");
         ms.position(dataOffset+4);            // position forward integration constant
         //Util.prt("FixReverseIntegration: fwd="+forward+" "+samples[0]+" rev="+reverse+" "+samples[samples.length-1]);
         if(reverse != samples[samples.length-1]) {
+System.out.println("Here we are");
           ms.position(dataOffset+8);
           ms.putInt(samples[samples.length-1]);
           reverse = samples[samples.length-1];      // set new reverse in data section
@@ -1411,7 +1416,7 @@ public class MiniSeed  implements MiniSeedOutputHandler {
           if(samples == null) Util.prt("MS.fixReverseIntegration() failed decomp returned null");
           //else Util.prt("FixReverseIntegration: new rev="+samples[samples.length-1]);
         } 
-      }
+      //}
     }
     catch(SteimException e) {}
   }

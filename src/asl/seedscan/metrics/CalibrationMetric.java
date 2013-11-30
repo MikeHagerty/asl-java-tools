@@ -28,6 +28,8 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.TimeZone;
+import java.text.SimpleDateFormat;
 
 import java.io.IOException;
 import java.io.BufferedReader;
@@ -83,7 +85,13 @@ extends Metric
         }
 
     // Get all BH? channels for this stationMeta:
-        List<Channel> channels = stationMeta.getChannelArray("BH");
+        List<Channel> channels;
+        if (stationMeta.getNetwork().equals("II")) {
+            channels = stationMeta.getChannelArray("LH");
+        }
+        else { // IU stations use BH? for cals
+            channels = stationMeta.getChannelArray("BH");
+        }
 
         for (Channel channel : channels){
 
@@ -92,7 +100,7 @@ extends Metric
                 continue;
             }
 
-            if ( !(channel.getChannel().equals("BHZ")) && stationMeta.getChanMeta(channel).getInstrumentType().contains("STS-2")) {
+            if ( !(channel.getChannel().contains("HZ")) && stationMeta.getChanMeta(channel).getInstrumentType().contains("STS-2")) {
             // Skip STS-2/STS-2.5 Horizontal Channels
                 logger.info("InstrumentType = STS-2/2.5 --> Skip horizontal channel={}", channel);
                 continue;
@@ -133,74 +141,22 @@ extends Metric
             return null;
         }
 
-        List<Blockette320> calBlocks = metricData.getChannelCalData(channel);
+        CalibrationResult calibration = new CalibrationResult(channel);
+        calibration.read();
 
-        if (calBlocks == null) {
+        if (!calibration.isValid()) {
             logger.info("No cal blocks found for [{}/{}/{}] --> Skip Metric",getStation(),channel,getDay());
             return null;
         }
 
-        if (calBlocks.size() > 1) {
-            logger.error("Found more than 1 calibration blockette! --> What to do ?");
-        }
+        long calStartEpoch = calibration.getStartEpoch();
+        long calDuration   = calibration.getDuration();
+        long calEndEpoch   = calibration.getEndEpoch();
+        Channel calChannel = calibration.getCalChannel();
 
-        Blockette320 blockette320 = calBlocks.get(0);
-        //blockette320.print();
-        long calStartEpoch      = blockette320.getCalibrationEpoch();   // Epoch millisecs
-        long calDuration        = blockette320.getCalibrationDuration();// Duration in millisecs
-        long calEndEpoch        = calStartEpoch + calDuration;
-        String channelExtension = blockette320.getCalInputChannel();  // e.g., "BC0" or "BC1"
-
+// Fix these:
         List<DataSet> data = metricData.getChannelData(channel);
-        long dataStartEpoch     = data.get(0).getStartTime() / 1000;  // Convert microsecs --> millisecs
-        long dataEndEpoch       = data.get(0).getEndTime()   / 1000;  // ...
         double srate            = data.get(0).getSampleRate();
-
-        //logger.info("channel=[{}] calChannel=[{}] calStartDate=[{}] calDuration=[{}] sec", channel, channelExtension, 
-                           //EpochData.epochToTimeString(blockette320.getCalibrationCalendar()), calDuration/1000);
-        logger.info(blockette320.toString());
-
-        if ( blockette320.getCalibrationCalendar().get(Calendar.HOUR) == 0 ){
-            // This appears to be the 2nd half of a cal that began on the previous day --> Skip
-            logger.warn("** cal appears to be the 2nd half of a cal from previous day --> Skip");
-            return null;
-        }
-
-        // Cal channels will have (no) location = "" in the miniseed files, but this will
-        //   be mapped to the default location code="00"
-        Channel calChannel = new Channel("00", channelExtension);
-
-        CalibrationResult calibration = new CalibrationResult(channel, calChannel, 
-                EpochData.epochToTimeString(blockette320.getCalibrationCalendar()), calDuration/1000);
-
-        if ( calEndEpoch > dataEndEpoch ) {
-            // Look for cal to span into next day
-
-            logger.info("channel=[{}] calEndEpoch > dataEndEpoch --> Cal appears to span day", channel); 
-
-            calBlocks = metricData.getNextMetricData().getChannelCalData(channel);
-
-            if (calBlocks == null) {
-                logger.warn("No DAY 2 cal blocks found for channel=[{}]", channel); 
-            }
-            else {
-                logger.info("Found matching blockette320 on 2nd day for channel=[{}]", channel); 
-                blockette320 = calBlocks.get(0);
-                long nextCalStartEpoch      = blockette320.getCalibrationEpoch();
-                long nextCalDuration        = blockette320.getCalibrationDuration();
-                String nextChannelExtension = blockette320.getCalInputChannel();  // e.g., "BC0"
-            // Compare millisecs between end of previous cal and start of this cal
-                if ( Math.abs(nextCalStartEpoch - calEndEpoch) < 1800000 ) { // They are within 1800 (?) secs of each other
-                    boolean calSpansNextDay = true;
-                    calDuration += nextCalDuration; 
-                }
-                //logger.info("channel=[{}] calChannel=[{}] calStartDate=[{}] calDuration=[{}] sec", channel, nextChannelExtension, 
-                                //EpochData.epochToTimeString(blockette320.getCalibrationCalendar()), nextCalDuration/1000);
-                //logger.info(blockette320.toString());
-                //logger.info("channel=[{}] total calDuration=[{}] sec", channel, calDuration/1000);
-            }
-    
-        }
 
     // We have the cal startTime and duration --> window both the input (BC?) and output (=channel data) and 
     //    compute the PSD of each
@@ -210,21 +166,14 @@ extends Metric
         double[] inData  = metricData.getWindowedData(calChannel, calStartEpoch, calStartEpoch + calDuration);
 
         if (inData == null || inData.length <= 0) {
-            logger.error("We have no data for reported cal input channel=[{}] for station=[{}] --> Skip metric", channelExtension, getStation());
+            logger.error("We have no data for reported cal input channel=[{}] for station=[{}] --> Skip metric"
+                         ,calChannel, getStation());
             return null;
         }
         if (outData == null || outData.length <= 0) {
             logger.error("We have no data for reported cal output channel=[{}] for station=[{}] --> Skip metric", channel, getStation());
             return null;
         }
-
-//MTH
-/**
-        String fileName1 = getStation() + "." + channel + ".sac";
-        String fileName2 = getStation() + "." + channelExtension + ".sac";
-        Timeseries.writeSacFile(outData, srate, fileName1, getStation(), channel.getChannel());  
-        Timeseries.writeSacFile(inData,  srate, fileName2, getStation(), channelExtension);  
-**/
 
      // Compute/Get the 1-sided psd[f] using Peterson's algorithm (24 hrs, 13 segments, etc.)
 
@@ -356,6 +305,16 @@ extends Metric
         }
         calibration.setCornerFreq(cornerFreq);
 
+        // Same for cal response
+        double cornerFreqCal = 0.;
+        for (int k=iNorm; k>=0; k--) {
+            if (Math.abs(midAmp - calAmp[k]) >= 3) {
+                cornerFreqCal = freq[k];
+                break;
+            }
+        }
+        calibration.setCornerFreqCal(cornerFreqCal);
+
         if (cornerFreq <= 0.) {
             logger.warn("Corner freq == 0 --> There is likely a problem with this Cal!");
             //throw new RuntimeException("CalibrationMetric: Error - cornerFreq == 0!");
@@ -427,6 +386,8 @@ extends Metric
             return false;
         }
 
+        logger.info("readSensorTable() from file=[{}]", fileName);
+
         BufferedReader br = null;
         try {
             String line;
@@ -477,6 +438,11 @@ extends Metric
             }
             catch (Exception e) {
                 logger.error("Failed attempt to read instrument-calibration-file from config.xml: " + e.getMessage() );
+                return null;
+            }
+            if (fileName == null) {
+                logger.warn("No instrument calibration file found in config.xml --> Use default values");
+                return null;
             }
             readSensorTable(fileName);
         }
@@ -534,12 +500,16 @@ extends Metric
         double phsDiff;
     }
 
+
     public class CalibrationResult
     {
         private Channel channel;
         private Channel calInputChannel;
-        private String  calStartDate;
         private long    calDuration;
+        private long    calStartEpoch;
+        private long    calEndEpoch;
+        private String  calStartDate;
+        private boolean isValid = false;
 
         String sensorName;
         double Tmin;
@@ -549,12 +519,8 @@ extends Metric
         double cornerFreqCal;
         Hashtable<String, BandAverageDiff> bandTable;
 
-        public CalibrationResult(Channel channel, Channel calInputChannel,
-                                 String calStartDate, long calDuration) {
+        public CalibrationResult(Channel channel) {
             this.channel = channel;
-            this.calInputChannel = calInputChannel;
-            this.calStartDate = calStartDate;
-            this.calDuration = calDuration;
             bandTable = new Hashtable<String, BandAverageDiff>();
         }
         void setSensorName(String sensorName) {
@@ -574,6 +540,103 @@ extends Metric
         void addBand(String name, BandAverageDiff bandDiff) {
             bandTable.put(name, bandDiff);
         }
+
+        public boolean isValid() {
+            return isValid;
+        } 
+        public long getStartEpoch() {
+            return calStartEpoch;
+        } 
+        public long getEndEpoch() {
+            return calEndEpoch;
+        } 
+        public long getDuration() {
+            return calDuration;
+        } 
+        public Channel getCalChannel() {
+            return calInputChannel;
+        }
+
+        public void read() {
+            if (stationMeta.getNetwork().equals("IU")) {
+                List<Blockette320> calBlocks = metricData.getChannelCalData(channel);
+                if (calBlocks == null) {
+                    logger.info("No cal blocks found for [{}/{}/{}] --> Skip Metric",getStation(),channel,getDay());
+                    return;
+                }
+                if (calBlocks.size() > 1) {
+                    logger.error("Found more than 1 calibration blockette! --> What to do ?");
+                }
+                Blockette320 blockette320 = calBlocks.get(0);
+                calStartEpoch     = blockette320.getCalibrationEpoch();   // Epoch millisecs
+                calDuration       = blockette320.getCalibrationDuration();// Duration in millisecs
+                calStartDate      = EpochData.epochToTimeString(blockette320.getCalibrationCalendar());
+                calEndEpoch       = calStartEpoch + calDuration;
+                String channelExtension  = blockette320.getCalInputChannel();  // e.g., "BC0" or "BC1"
+                calInputChannel   = new Channel("00", channelExtension);
+                logger.info(blockette320.toString());
+                if ( blockette320.getCalibrationCalendar().get(Calendar.HOUR) == 0 ){
+                // This appears to be the 2nd half of a cal that began on the previous day --> Skip
+                    logger.warn("** cal appears to be the 2nd half of a cal from previous day --> Skip");
+                    return;
+                }
+
+                List<DataSet> data = metricData.getChannelData(channel);
+                long dataStartEpoch     = data.get(0).getStartTime() / 1000;  // Convert microsecs --> millisecs
+                long dataEndEpoch       = data.get(0).getEndTime()   / 1000;  // ...
+
+                if (calEndEpoch > dataEndEpoch) {
+                // Look for cal to span into next day
+                    logger.info("channel=[{}] calEndEpoch > dataEndEpoch --> Cal appears to span day", channel);
+                    calBlocks = metricData.getNextMetricData().getChannelCalData(channel);
+                    if (calBlocks == null) {
+                        logger.warn("No DAY 2 cal blocks found for channel=[{}]", channel);
+                    }
+                    else {
+                        logger.info("Found matching blockette320 on 2nd day for channel=[{}]", channel);
+                        blockette320 = calBlocks.get(0);
+                        long nextCalStartEpoch      = blockette320.getCalibrationEpoch();
+                        long nextCalDuration        = blockette320.getCalibrationDuration();
+                        String nextChannelExtension = blockette320.getCalInputChannel();  // e.g., "BC0"
+                    // Compare millisecs between end of previous cal and start of this cal
+                        if ( Math.abs(nextCalStartEpoch - calEndEpoch) < 1800000 ) { // They are within 1800 (?) secs of each other
+                            boolean calSpansNextDay = true;
+                            logger.info("calDuration = {} + {} = [{}]", calDuration, nextCalDuration, calDuration + nextCalDuration);
+                            calDuration += nextCalDuration;
+                        }
+                        //logger.info("channel=[{}] calChannel=[{}] calStartDate=[{}] calDuration=[{}] sec", channel
+                           //,nextChannelExtension, EpochData.epochToTimeString(blockette320.getCalibrationCalendar())
+                           //,nextCalDuration/1000);
+                        //logger.info(blockette320.toString());
+                        //logger.info("channel=[{}] total calDuration=[{}] sec", channel, calDuration/1000);
+                    }
+                }
+                this.isValid = true;
+            }
+            else if (stationMeta.getNetwork().equals("II")) {
+                String channelExtension = null;
+                if (channel.getLocation().equals("00")) {
+                    channelExtension = "LC0";
+                }
+                else if (channel.getLocation().equals("10")) {
+                    channelExtension = "LC1";
+                }
+                // All cal channels will have default location code = "00"
+                calInputChannel   = new Channel("00", channelExtension);
+            // Use data start times to set calStart/End
+                List<DataSet> data = metricData.getChannelData(calInputChannel);
+                calStartEpoch     = data.get(0).getStartTime() / 1000;  // Convert microsecs --> millisecs
+                calEndEpoch       = data.get(0).getEndTime()   / 1000;  // ...
+                calDuration       = calEndEpoch - calStartEpoch;
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy:DDD");
+                sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+                calStartDate = sdf.format(calStartEpoch);
+logger.info("Got calStartEpoch=[{}] calEndEpoch=[{}] calDuration=[{}] calStartDate=[{}]", calStartEpoch, 
+calEndEpoch, calDuration, calStartDate);
+//System.exit(0);
+            }
+        }
+
 
         public String toJSONString() {
             BandAverageDiff bandDiff = bandTable.get("midBandDiff");

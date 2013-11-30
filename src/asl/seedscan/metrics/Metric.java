@@ -188,6 +188,10 @@ public abstract class Metric
         String[] dateArray = getDay().split(":");
         return dateArray[0];
     }
+    public String getNetwork()
+    {
+        return stationMeta.getNetwork();
+    }
     public String getStn()      // e.g., will return "ANMO"
     {
         return stationMeta.getStation();
