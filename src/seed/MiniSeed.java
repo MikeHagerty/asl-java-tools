@@ -28,11 +28,15 @@
 package seed;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.ArrayList;
 import java.util.Collection;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** This class represents a mini-seed packet.  It can translate binary data in
  * a byte array and break apart the fixed data header and other data blockettes
@@ -41,6 +45,8 @@ import java.util.Collection;
  * @author davidketchum
  */
 public class MiniSeed  implements MiniSeedOutputHandler {
+  private static final Logger logger = LoggerFactory.getLogger(seed.MiniSeed.class);
+
   public final static int ACTIVITY_CAL_ON=1;
   public final static int ACTIVITY_TIME_CORRECTION_APPLIED=2;
   public final static int ACTIVITY_BEGIN_EVENT=4;
@@ -1372,7 +1378,6 @@ public class MiniSeed  implements MiniSeedOutputHandler {
     }
   }
   public int [] decomp() throws SteimException {
-//System.out.println("decomp(): ENTER");
     int rev=0;
     byte [] frames = new byte[getBlockSize()-dataOffset];
     System.arraycopy(buf,dataOffset, frames,0,getBlockSize()-dataOffset); 
@@ -1380,17 +1385,32 @@ public class MiniSeed  implements MiniSeedOutputHandler {
     if(getEncoding() == 10) samples = Steim1.decode(frames, getNsamp(), swap, rev);
     if(getEncoding() == 11) samples = Steim2.decode(frames, getNsamp(), swap, rev);
 
+  //MTH: Added to convert miniseed format 3 = 32-bit integer from byte[]
+  // I think the JVM will read in bytes in BIG_ENDIAN by default, but I'm not positive ...
+    if(getEncoding() == 3) {
+        if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
+            //logger.warn("I'm converting data byte[] to int[] assuming BIG_ENDIAN but this computer is LITTLE_ENDIAN!!");
+        }
+        IntBuffer intBuf = ByteBuffer.wrap(frames).order(ByteOrder.BIG_ENDIAN).asIntBuffer();
+        samples = new int[intBuf.remaining()];
+        intBuf.get(samples);
+        if ( samples == null || (samples.length != (frames.length / 4)) ){
+            logger.error("Problem converting data from byte[] to format 3 int[]");
+        }
+        logger.debug("Encoding 3: Converted [{}] int[]'s", samples.length);
+    }
+
     // Would adding this block "as is" cause a reverse constant error (or steim error)?  If so, restore block
     // to state before adding this one, write it out, and make this block the beginning of next output block
     if(Steim2.hadReverseError() || Steim2.hadSampleCountError()) {
-System.out.println("decomp(): Inside Steim2");
+      logger.error("Data conversion: Steim2 Error Detected");
       if(Steim2.hadReverseError()) Util.prta("Decomp  "+Steim2.getReverseError()+" "+toString());
       if(Steim2.hadSampleCountError()) Util.prta("decomp "+Steim2.getSampleCountError()+" "+toString());
       return null;
     }
-//System.out.format("decomp(): return samples n=[%d]\n", samples.length);
     return samples;
   }
+
   public void fixReverseIntegration() {
    try {
       byte [] frames = new byte[getBlockSize()-dataOffset];

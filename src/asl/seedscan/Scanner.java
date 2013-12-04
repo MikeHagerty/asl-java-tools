@@ -252,7 +252,8 @@ public class Scanner
                     for (String id: results.getIdSortedSet()) {
                         double value = results.getResult(id);
                         ByteBuffer digest = results.getDigest(id);
-                        logger.info(String.format("%s [%7s] [%s] %15s:%6.2f [%s]", results.getMetricName(), 
+                        //logger.info(String.format("%s [%7s] [%s] %15s:%6.2f [%s]", results.getMetricName(), 
+                        logger.info(String.format("%s [%7s] [%s] %s:%6.2f [%s]", results.getMetricName(), 
                             results.getStation(), EpochData.epochToDateString(results.getDate()), id, value, 
                             Hex.byteArrayToHexString(digest.array()) ));
 

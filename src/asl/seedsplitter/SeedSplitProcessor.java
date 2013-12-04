@@ -406,13 +406,11 @@ implements Runnable
 
                         record = new MiniSeed(recordBytes);
                         //record.fixReverseIntegration();
-//System.out.println("SeedSplitProcessor: call record.decomp()");
                         samples = record.decomp();
-//System.out.println("SeedSplitProcessor: decomp DONE");
 
                     // MTH: decomp() will return null in the event of Steim2 Exception, etc.
                         if (samples == null) {
-                            logger.warn("SeedSplitProcessor: Caught SteimException --> Skip this block");
+                            logger.warn("SeedSplitProcessor: samples=null: Possible Steim2Exception --> Skip this block");
                         }
                         else {  // samples != null
 

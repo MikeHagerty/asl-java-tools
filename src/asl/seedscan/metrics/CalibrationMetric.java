@@ -154,9 +154,14 @@ extends Metric
         long calEndEpoch   = calibration.getEndEpoch();
         Channel calChannel = calibration.getCalChannel();
 
-// Fix these:
-        List<DataSet> data = metricData.getChannelData(channel);
-        double srate            = data.get(0).getSampleRate();
+        //List<DataSet> data     = metricData.getChannelData(channel);
+        double srate    = metricData.getChannelData(channel).get(0).getSampleRate();
+        double calSrate = metricData.getChannelData(calChannel).get(0).getSampleRate();
+
+        if (srate != calSrate) {
+            logger.error("Calibration Channel srate=[{}] != Channel[{}] srate=[{}]",calSrate,channel,srate);
+            return null;
+        }
 
     // We have the cal startTime and duration --> window both the input (BC?) and output (=channel data) and 
     //    compute the PSD of each
@@ -210,7 +215,6 @@ extends Metric
             Cmplx iw  = Cmplx.mul(ic , s*freq[k]);
             Hf[k]     = Cmplx.div( Gxy[k], Gx[k] );
             Hf[k]     = Cmplx.mul( Hf[k], iw );
-            //calAmp[k] = Hf[k].mag();
             calAmp[k] = 20. * Math.log10( Hf[k].mag() );
             calPhs[k] = Hf[k].phs() * 180./Math.PI;
         }
@@ -628,12 +632,11 @@ extends Metric
                 calStartEpoch     = data.get(0).getStartTime() / 1000;  // Convert microsecs --> millisecs
                 calEndEpoch       = data.get(0).getEndTime()   / 1000;  // ...
                 calDuration       = calEndEpoch - calStartEpoch;
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy:DDD");
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy:DDD:HH:mm:ss");
                 sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
                 calStartDate = sdf.format(calStartEpoch);
-logger.info("Got calStartEpoch=[{}] calEndEpoch=[{}] calDuration=[{}] calStartDate=[{}]", calStartEpoch, 
-calEndEpoch, calDuration, calStartDate);
-//System.exit(0);
+
+                this.isValid = true;
             }
         }
 
@@ -664,7 +667,7 @@ calEndEpoch, calDuration, calStartDate);
 
         public String toString() {
             StringBuilder out = new StringBuilder();
-            out.append(String.format("\n==CalibrationResult: channel=[%s] calInputChannel=[%s] calStart=[%s] calDuration=[%d]\n"
+            out.append(String.format("\n==CalibrationResult: channel=[%s] calInputChannel=[%s] calStart=[%s] calDuration=[%d] msecs\n"
                                  + "                     SensorName=[%s]\n"
                                  + "                     Tmin=[%.2f] Tmax=[%.2f] Tnorm=[%.2f] corner Freq=[%f] Per=[%f]\n"
                                  + "                                                                Cal corner Per=[%f]\n"
@@ -673,7 +676,7 @@ calEndEpoch, calDuration, calStartDate);
                                     ,Tmin, Tmax, Tnorm, cornerFreq, 1./cornerFreq, 1./cornerFreqCal) );
             for (String band : bandTable.keySet()) {
                 BandAverageDiff bandDiff = bandTable.get(band);
-                out.append(String.format("                     Band [%s]: T1=%.2f T2=%.2f AmpDiff=[%f] PhsDiff=[%f]\n",
+                out.append(String.format("                     Band [%12s]: T1=%.2f T2=%.2f AmpDiff=[%f] PhsDiff=[%f]\n",
                                           band, bandDiff.T1, bandDiff.T2, bandDiff.ampDiff, bandDiff.phsDiff ) ); 
             }
             return out.toString();
