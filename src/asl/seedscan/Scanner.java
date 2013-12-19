@@ -250,23 +250,35 @@ public class Scanner
                 }
                 else {
                     for (String id: results.getIdSortedSet()) {
-                        double value = results.getResult(id);
-                        ByteBuffer digest = results.getDigest(id);
-                        //logger.info(String.format("%s [%7s] [%s] %15s:%6.2f [%s]", results.getMetricName(), 
-                        logger.info(String.format("%s [%7s] [%s] %s:%6.2f [%s]", results.getMetricName(), 
-                            results.getStation(), EpochData.epochToDateString(results.getDate()), id, value, 
-                            Hex.byteArrayToHexString(digest.array()) ));
-
-                        if (Double.isNaN(value)){
-                            logger.warn(String.format("%s [%s] [%s] %s: ERROR: metric value = [ NaN ] !!\n", 
-                              results.getMetricName(), results.getStation(), EpochData.epochToDateString(results.getDate()),
-                              id ));
-                        }
-                        if (Double.isInfinite(value)){
-                            logger.warn(String.format("%s [%s] [%s] %s: ERROR: metric value = [ Infinity ] !!\n", 
-                              results.getMetricName(), results.getStation(), EpochData.epochToDateString(results.getDate()),
-                              id ));
-                        }
+                    	try {
+	                        double value = Double.parseDouble(results.getResult(id));
+	                        ByteBuffer digest = results.getDigest(id);
+	                        //logger.info(String.format("%s [%7s] [%s] %15s:%6.2f [%s]", results.getMetricName(), 
+	                        logger.info(String.format("%s [%7s] [%s] %s:%6.2f [%s]", results.getMetricName(), 
+	                            results.getStation(), EpochData.epochToDateString(results.getDate()), id, value, 
+	                            Hex.byteArrayToHexString(digest.array()) ));
+	
+	                        if (Double.isNaN(value)){
+	                            logger.warn(String.format("%s [%s] [%s] %s: ERROR: metric value = [ NaN ] !!\n", 
+	                              results.getMetricName(), results.getStation(), EpochData.epochToDateString(results.getDate()),
+	                              id ));
+	                        }
+	                        if (Double.isInfinite(value)){
+	                            logger.warn(String.format("%s [%s] [%s] %s: ERROR: metric value = [ Infinity ] !!\n", 
+	                              results.getMetricName(), results.getStation(), EpochData.epochToDateString(results.getDate()),
+	                              id ));
+	                        }
+                    	}
+                    	//If we get a numberFormat exception then it must have been a String value.
+                    	catch(NumberFormatException e) {
+                    		String value = results.getResult(id);
+	                        ByteBuffer digest = results.getDigest(id);
+	                        //logger.info(String.format("%s [%7s] [%s] %15s:%6.2f [%s]", results.getMetricName(), 
+	                        logger.info(String.format("%s [%7s] [%s] %s:%s [%s]", results.getMetricName(), 
+	                            results.getStation(), EpochData.epochToDateString(results.getDate()), id, value, 
+	                            Hex.byteArrayToHexString(digest.array()) ));
+                    	}
+                    	
                     }
                     if (injector.isConnected()) {
                         try {

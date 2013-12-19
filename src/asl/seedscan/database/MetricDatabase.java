@@ -189,7 +189,7 @@ public class MetricDatabase
 				connection.setAutoCommit(false);
 				
 				CallableStatement callStatement =
-						connection.prepareCall("SELECT spInsertMetricData(?, ?, ?, ?, ?, ?, ?, ?)");
+						connection.prepareCall("SELECT spinsertmetricdata(?, ?, ?, ?, ?, ?, ?, ?)");
 				
 				for (String id : results.getIdSet())
 				{
@@ -205,11 +205,12 @@ public class MetricDatabase
 					callStatement.setBytes(8, results.getDigest(id).array());
 
                     if (results.getMetricName().equals("CalibrationMetric") ){
-					    callStatement.setString(7, id);
+					    callStatement.setString(7, results.getResult(id));
                     }
                     else {
-					    callStatement.setDouble(7, results.getResult(id));
+					    callStatement.setDouble(7, Double.parseDouble(results.getResult(id)));
                     }
+                        System.out.print("\n\n\n"+callStatement+"\n\n\n");
 					
 					callStatement.executeQuery();
 				}

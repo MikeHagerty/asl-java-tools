@@ -39,7 +39,7 @@ public class MetricResult
     private String metricName;
     private Calendar date;
     private Station station;
-    private Hashtable<String, Double> valueMap;
+    private Hashtable<String, String> valueMap;
     private Hashtable<String, ByteBuffer> digestMap;
 
     public MetricResult(StationMeta stationInfo, String metricName)
@@ -47,7 +47,7 @@ public class MetricResult
     	this.metricName = metricName;
     	this.date = (Calendar)stationInfo.getTimestamp().clone();
     	this.station = new Station(stationInfo.getNetwork(), stationInfo.getStation());
-        this.valueMap = new Hashtable<String, Double>();
+        this.valueMap = new Hashtable<String, String>();
         this.digestMap = new Hashtable<String, ByteBuffer>();
     }
     
@@ -68,21 +68,31 @@ public class MetricResult
 
     public void addResult(Channel channel, Double value, ByteBuffer digest)
     {
+        addResult(createResultId(channel), String.valueOf(value), digest);
+    }
+    //We now support string values and convert all doubles to String prior to adding their results.
+    public void addResult(Channel channel, String value, ByteBuffer digest)
+    {
         addResult(createResultId(channel), value, digest);
     }
     
     public void addResult(Channel channelA, Channel channelB, Double value, ByteBuffer digest)
     {
+        addResult(createResultId(channelA, channelB), String.valueOf(value), digest);
+    }
+    
+    public void addResult(Channel channelA, Channel channelB, String value, ByteBuffer digest)
+    {
         addResult(createResultId(channelA, channelB), value, digest);
     }
     
-    public void addResult(String id, Double value, ByteBuffer digest)
+    public void addResult(String id, String value, ByteBuffer digest)
     {
         valueMap.put(id, value);
         digestMap.put(id, digest);
     }
 
-    public Double getResult(String id)
+    public String getResult(String id)
     {
         return valueMap.get(id);
     }
