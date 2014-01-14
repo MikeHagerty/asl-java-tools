@@ -102,7 +102,7 @@ public class SeedScan
         }
 
         Option opt;
-        Iterator iter = cmdLine.iterator();
+        Iterator<?> iter = cmdLine.iterator();
         while (iter.hasNext()) {
             opt = (Option)iter.next();
             if (opt.getOpt().equals("c")) {
@@ -211,7 +211,7 @@ public class SeedScan
 
                 for (MetricT met: scanCfg.getMetrics().getMetric()) {
                     try {
-                        Class metricClass = Class.forName(met.getClassName());
+                        Class<?> metricClass = Class.forName(met.getClassName());
                         MetricWrapper wrapper = new MetricWrapper(metricClass);
                         for (ArgumentT arg: met.getArgument()) {
                             wrapper.add(arg.getName(), arg.getValue());

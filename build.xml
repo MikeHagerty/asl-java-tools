@@ -30,6 +30,7 @@
             <include name="**/*.jar" />
         </fileset>
         <pathelement location="." />
+        <pathelement location="./src" />
     </path>
 
 <!--ANT SEEDSCAN-->
@@ -72,7 +73,7 @@
 <!--
             <jvmarg value="-Xmx1024m"/>
 -->
-            <jvmarg value="-Xmx4096m"/>
+            <jvmarg value="-Xmx30g"/>
             <jvmarg value="-Djava.awt.headless=true"/>
         </java>
     </target>

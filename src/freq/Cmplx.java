@@ -24,7 +24,6 @@ public class Cmplx implements java.io.Serializable {
 
     public double i; // imaginary part
 
-    private static final double PI = Math.PI;
 
     private static final double TWOPI = 2.0 * Math.PI;
 
@@ -108,13 +107,11 @@ public class Cmplx implements java.io.Serializable {
 
     /* instance methods */
     public final double real() {
-        double r;
-        return (r = this.r);
+        return this.r;
     }
 
     public final double imag() {
-        double r;
-        return (r = this.i);
+        return this.i;
     }
 
     public final double mag() {

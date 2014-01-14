@@ -128,7 +128,6 @@ extends Metric
                 // since everything is packed into a JSON String so we'll just directly call 
                 // MetricResult.addResult(String id, double value, digest):
                 metricResult.addResult(channel, calResult.toJSONString(), digest);
-                //MetricResult.createChannel(calResult.toJSONString());
             }
 
         }// end foreach channel
