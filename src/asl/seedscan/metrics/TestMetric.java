@@ -59,8 +59,8 @@ extends Metric
 
     // Get a sorted list of continuous channels for this stationMeta and loop over:
 
-        //List<Channel> channels = stationMeta.getChannelArray("LH");
-        List<Channel> channels = stationMeta.getChannelArray("BH");
+        List<Channel> channels = stationMeta.getChannelArray("LH");
+        //List<Channel> channels = stationMeta.getChannelArray("BH");
 
         for (Channel channel : channels){
             System.out.format("== Channel:[%s]\n", channel);
@@ -68,6 +68,7 @@ extends Metric
             //ByteBuffer digest = metricData.valueDigestChanged(channel, createIdentifier(channel));
 
             //System.out.format("== %s: stationMeta.hasChannel(%s)=%s\n", getName(), channel, stationMeta.hasChannel(channel) );
+
             computeMetric(channel);
 
         }// end foreach channel
@@ -79,6 +80,13 @@ System.exit(0);
 
         if (!metricData.hasChannelData(channel)) {
         }
+
+     // Plot PoleZero Amp & Phase Response of this channel:
+        ChannelMeta chanMeta = stationMeta.getChanMeta(channel);
+        chanMeta.plotPoleZeroResp();
+        PoleZeroStage pz = (PoleZeroStage)chanMeta.getStage(1);
+        pz.print();
+
 
      // Test EventCMT cal
 /**
@@ -103,12 +111,6 @@ System.out.format("== eventCMT.timeInMillis = [%d]\n", cal2.getTimeInMillis() );
 
         eventCMT.printCMT();
 **/
-
-     // Plot PoleZero Amp & Phase Response of this channel:
-        ChannelMeta chanMeta = stationMeta.getChanMeta(channel);
-        chanMeta.plotPoleZeroResp();
-        PoleZeroStage pz = (PoleZeroStage)chanMeta.getStage(1);
-        pz.print();
 
 /**
      // The actual (=from data) number of samples:

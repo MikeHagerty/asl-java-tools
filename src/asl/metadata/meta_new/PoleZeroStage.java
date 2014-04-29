@@ -19,6 +19,9 @@
 
 package asl.metadata.meta_new;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import freq.Cmplx;
 
@@ -29,6 +32,8 @@ import freq.Cmplx;
 public class PoleZeroStage extends ResponseStage
                            implements Cloneable
 {
+    private static final Logger logger = LoggerFactory.getLogger(asl.metadata.meta_new.PoleZeroStage.class);
+
     private ArrayList<Cmplx> poles;
     private ArrayList<Cmplx> zeros;
     private double normalizationConstant;
@@ -184,6 +189,7 @@ public class PoleZeroStage extends ResponseStage
         s = new Cmplx(0.0, 2*Math.PI*f);
       }
       else if (getStageType() == 'B'){
+        logger.info("StageType = 'B' --> s=if");
         s = new Cmplx(0.0, f);
       }
       else {

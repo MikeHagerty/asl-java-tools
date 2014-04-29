@@ -57,6 +57,8 @@ import java.io.File;
 public class ChannelMeta extends MemberDigest 
                          implements Serializable, Cloneable
 {
+    private static final Logger logger = LoggerFactory.getLogger(asl.metadata.meta_new.ChannelMeta.class);
+
     private static final long serialVersionUID = 1L;
 
     private String name = null;
@@ -444,11 +446,12 @@ public class ChannelMeta extends MemberDigest
                 }
                 else if (pz.getStageType() == 'B'){
                     s = 1.;
+                    logger.info("PoleZero Type='B' --> s=1");
                 }
                 else {
                     throw new RuntimeException("getResponse(): Unknown PoleZero StageType!");
                 }
-//System.out.format("== Channel=%s inUnits=%d outUnits=%d n=%d s=%f\n", this.getChannel(), inUnits, outUnits, n);
+System.out.format("== Channel=%s inUnits=%d outUnits=%d n=%d s=%f\n", this.getChannel(), inUnits, outUnits, n, s);
 
                 if (n < 0) {                    // INTEGRATION RESPONSE I(w) x (iw)^n
                     for (int i=0; i<freqs.length; i++){

@@ -3,6 +3,11 @@
         ASL SeedScan Data Quality Analyzer
     </description>
 
+    <echo>Java Version via Ant: ${ant.java.version}</echo> 
+    <echo>Java Version System Prop: ${java.version}</echo> 
+    <echo>Java Home: ${java.home}</echo> 
+
+
     <!-- set global properties for this build -->
     <property name="project.main"               value="asl.seedscan.SeedScan" />
     <property name="project.archive"            value="SeedScan.jar" />
